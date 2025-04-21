@@ -3,7 +3,8 @@ using Il2CppInterop.Runtime.Attributes;
 using MelonLoader;
 using UnityEngine;
 using HarmonyLib;
-using System.Reflection;
+using Il2Cpp;
+using System.Collections;
 
 namespace LastEpochPandora.Services
 {
@@ -16,6 +17,7 @@ namespace LastEpochPandora.Services
         private HarmonyLib.Harmony _harmony;
         private const string HarmonyId = "com.deafwave.lastepochpandora.damageservice";
         private bool _isPatched = false;
+        private static bool _waitingForActor = false;
 
         public static class DamageContext
         {
@@ -32,7 +34,6 @@ namespace LastEpochPandora.Services
         {
             Instance = this;
             MelonLogger.Msg("DamageService: Awake() called and Instance set.");
-            MelonLogger.Msg($"DamageService.Awake(): ReferenceService.LocalPlayer is {(ReferenceService.LocalPlayer == null ? "null" : "not null")}");
 
             SceneService.RegisterSceneChangeCallback(OnSafeSceneLoaded);
             ReferenceService.RegisterLocalPlayerAvailableCallback(OnLocalPlayerReady);
@@ -43,12 +44,8 @@ namespace LastEpochPandora.Services
         {
             if (!_isPatched && CanRun())
             {
-                MelonLogger.Msg("DamageService: LocalPlayer is ready and CanRun passed. Applying patches...");
-                ApplyPatches();
-            }
-            else
-            {
-                MelonLogger.Msg("DamageService: OnLocalPlayerReady called, but CanRun failed or already patched.");
+                MelonLogger.Msg("DamageService: LocalPlayer is ready. Verifying actor before patching...");
+                TryApplyPatchesWithRetry();
             }
         }
 
@@ -57,13 +54,40 @@ namespace LastEpochPandora.Services
         {
             if (!_isPatched && CanRun())
             {
-                MelonLogger.Msg($"DamageService: Safe scene '{sceneName}' loaded and CanRun passed. Applying patches...");
-                ApplyPatches();
+                MelonLogger.Msg($"DamageService: Scene '{sceneName}' is safe. Verifying actor before patching...");
+                TryApplyPatchesWithRetry();
             }
-            else
+        }
+
+        private void TryApplyPatchesWithRetry()
+        {
+            var actor = ReferenceService.GetPlayerAsActor();
+            if (actor == null)
             {
-                MelonLogger.Msg($"DamageService: Scene '{sceneName}' loaded, but CanRun failed or already patched.");
+                if (!_waitingForActor)
+                {
+                    MelonLogger.Msg("DamageService: Player Actor not yet available. Starting coroutine to wait...");
+                    _waitingForActor = true;
+                    MelonCoroutines.Start(WaitForValidActor());
+                }
+                return;
             }
+
+            ApplyPatches();
+        }
+
+        [HideFromIl2Cpp]
+        private static IEnumerator WaitForValidActor()
+        {
+            while (ReferenceService.GetPlayerAsActor() == null)
+            {
+                MelonLogger.Msg("[ReferenceService] GameplayActor was null or destroyed.");
+                yield return new WaitForSeconds(1f);
+            }
+
+            MelonLogger.Msg("DamageService: Player Actor resolved. Proceeding with patching.");
+            _waitingForActor = false;
+            Instance.ApplyPatches();
         }
 
         private void ApplyPatches()
@@ -71,33 +95,20 @@ namespace LastEpochPandora.Services
             try
             {
                 _harmony = new HarmonyLib.Harmony(HarmonyId);
-                var originalMethod = typeof(DamageStatsHolder).GetMethod("applyDamage",
-                    BindingFlags.Public | BindingFlags.Instance,
-                    null,
-                    new Type[] { typeof(Actor) },
-                    null);
-
-                MelonLogger.Msg($"Original method found: {originalMethod != null}");
+                var originalMethod = typeof(DamageStatsHolder).GetMethod("applyDamage", new Type[] { typeof(Actor) });
                 if (originalMethod == null)
                 {
-                    MelonLogger.Error("Could not find method DamageStatsHolder.applyDamage(Actor)");
-                    var methods = typeof(DamageStatsHolder).GetMethods().Where(m => m.Name == "applyDamage").ToList();
-                    MelonLogger.Msg($"Found {methods.Count} methods named 'applyDamage':");
-                    foreach (var method in methods)
-                    {
-                        var parameters = string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name));
-                        MelonLogger.Msg($"  - {method.ReturnType.Name} {method.Name}({parameters})");
-                    }
+                    MelonLogger.Warning("DamageService: Original method applyDamage not found.");
                     return;
                 }
 
                 var prefix = typeof(DamageStatsHolder_ApplyDamagePatch).GetMethod("Prefix");
-                MelonLogger.Msg($"Prefix method found: {prefix != null}");
-                if (prefix == null) return;
-
                 var postfix = typeof(DamageStatsHolder_ApplyDamagePatch).GetMethod("Postfix");
-                MelonLogger.Msg($"Postfix method found: {postfix != null}");
-                if (postfix == null) return;
+                if (prefix == null || postfix == null)
+                {
+                    MelonLogger.Warning("DamageService: Prefix or Postfix method not found.");
+                    return;
+                }
 
                 _harmony.Patch(originalMethod,
                     prefix: new HarmonyMethod(prefix),
@@ -176,8 +187,10 @@ namespace LastEpochPandora.Services
         }
     }
 
+    [HarmonyPatch(typeof(DamageStatsHolder), "applyDamage", new Type[] { typeof(Actor) })]
     public class DamageStatsHolder_ApplyDamagePatch
     {
+        [HarmonyPrefix]
         public static void Prefix(DamageStatsHolder __instance, Actor __0)
         {
             MelonLogger.Msg("Entered Prefix (DamageStatsHolder.applyDamage)");
@@ -193,6 +206,7 @@ namespace LastEpochPandora.Services
             }
         }
 
+        [HarmonyPostfix]
         public static void Postfix(DamageStatsHolder __instance, Actor __0)
         {
             MelonLogger.Msg("Postfix entered (DamageStatsHolder.applyDamage)");
