@@ -2,6 +2,7 @@
 using MelonLoader;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System;
 using System.Collections;
 
 namespace LastEpochPandora.Services
@@ -12,108 +13,104 @@ namespace LastEpochPandora.Services
         public ReferenceService(IntPtr ptr) : base(ptr) { }
         public static ReferenceService Instance { get; private set; }
         private static Action onLocalPlayerAvailable;
-        public static LocalPlayer LocalPlayer { get; private set; }
-        private static bool _isWaitingForPlayer = false;
+        public static Actor LocalPlayer { get; private set; }
+        private static bool _isWaitingForLocalPlayer = false;
 
-        private float _updateTimer;
-        private const float UpdateInterval = 1.0f;
-
-        void Awake()
+        void OnEnable()
         {
-            Instance = this;
-            MelonLogger.Msg("ReferenceService: Initialized.");
-
+            if (Instance == null)
+            {
+                {
+                    Instance = this;
+                    MelonLogger.Msg("ReferenceService: Instance set in OnEnable");
+                }
+            }
         }
 
-        void Update()
+        void OnUpdate()
         {
-            MelonLogger.Msg("ReferenceService: Update called. Current scene: " + SceneManager.GetActiveScene().name);
             if (SceneService.InBannedScene()) return;
+            var newLocalPlayer = PlayerFinder.getLocalActorSync().GameplayActor.GetActor();
+            var blessLocalPlayer = PlayerFinder.getLocalPlayerInMultiplayer();
 
-            _updateTimer += Time.deltaTime;
-            if (_updateTimer < UpdateInterval) return;
-            _updateTimer = 0;
-
-            var newLocalPlayer = PlayerFinder.getLocalPlayerInMultiplayer();
-            MelonLogger.Msg($"ReferenceService: PlayerFinder result is null? {newLocalPlayer == null}");
-            MelonLogger.Msg($"ReferenceService: PlayerFinder.getLocalPlayerInMultiplayer() returned: {newLocalPlayer}");
-            MelonLogger.Msg($"ReferenceService: Current LocalPlayer: {LocalPlayer}");
+            MelonLogger.Warning($"Local Player: {newLocalPlayer}");
+            MelonLogger.Warning($"Bless Player: {blessLocalPlayer}");
 
             if (newLocalPlayer != LocalPlayer)
             {
-                MelonLogger.Msg("ReferenceService: newLocalPlayer != LocalPlayer is TRUE");
-                if (!newLocalPlayer.IsNullOrDestroyed())
-                {
-                    LocalPlayer = newLocalPlayer;
-                    MelonLogger.Msg($"ReferenceService: LocalPlayer updated - {LocalPlayer}");
-                    onLocalPlayerAvailable?.Invoke();
-                    onLocalPlayerAvailable = null;
-                }
-                else
-                {
-                    MelonLogger.Warning("ReferenceService: PlayerFinder returned a destroyed LocalPlayer.");
-                    LocalPlayer = null; // Ensure we clear the old reference
-                }
+                LocalPlayer = newLocalPlayer;
+                MelonLogger.Msg($"Local Player: {newLocalPlayer}");
+                MelonLogger.Msg($"Local Player 2: {blessLocalPlayer}");
+                onLocalPlayerAvailable?.Invoke();
+                onLocalPlayerAvailable = null;
             }
             else
             {
-                MelonLogger.Msg("ReferenceService: newLocalPlayer == LocalPlayer is TRUE");
+                MelonLogger.Warning("ReferenceService: PlayerFinder returned a destroyed player");
+                LocalPlayer = null;
             }
         }
 
+        private static readonly object _callbackLock = new object();
+
         public static void RegisterLocalPlayerAvailableCallback(Action callback)
         {
-            if (LocalPlayer != null && !LocalPlayer.IsNullOrDestroyed())
+            lock (_callbackLock)
             {
-                MelonLogger.Msg("ReferenceService: LocalPlayer already available, immediately invoking callback.");
-                callback?.Invoke();
-            }
-            else
-            {
-                MelonLogger.Msg("ReferenceService: LocalPlayer not ready, queuing callback.");
-                onLocalPlayerAvailable += callback;
-
-                if (!_isWaitingForPlayer)
+                if (LocalPlayer != null && !LocalPlayer.IsNullOrDestroyed() && Instance != null)
                 {
-                    _isWaitingForPlayer = true;
-                    MelonCoroutines.Start(WaitForLocalPlayer());
+                    MelonLogger.Msg("ReferenceService: LocalPlayer already exists, invoking callback");
+                    callback?.Invoke();
+                }
+                else
+                {
+                    MelonLogger.Msg("ReferenceService: LocalPlayer not yet ready, queuing callback");
+                    onLocalPlayerAvailable += callback;
+
+                    if (!_isWaitingForLocalPlayer)
+                    {
+                        _isWaitingForLocalPlayer = true;
+                        MelonCoroutines.Start(WaitForLocalPlayer());
+                    }
                 }
             }
         }
 
         private static IEnumerator WaitForLocalPlayer()
         {
-            while (SceneService.InBannedScene() || LocalPlayer == null || LocalPlayer.IsNullOrDestroyed())
+            while (true)
             {
-                LocalPlayer = PlayerFinder.getLocalPlayerInMultiplayer();
                 yield return new WaitForSeconds(1f);
+                if (Instance == null) continue;
+                if (SceneService.InBannedScene()) continue;
+
+                LocalPlayer = PlayerFinder.getLocalActorSync().GameplayActor.GetActor();
+                if (LocalPlayer != null && !LocalPlayer.IsNullOrDestroyed())
+                {
+                    break;
+                }
             }
 
+            MelonLogger.Msg($"ReferenceService: LocalPlayer now exists; {LocalPlayer}");
+            _isWaitingForLocalPlayer = false;
 
-            MelonLogger.Msg($"[ReferenceService] LocalPlayer is now available: {LocalPlayer}");
-
-            _isWaitingForPlayer = false;
-
-            if (onLocalPlayerAvailable != null)
+            lock (_callbackLock)
             {
                 onLocalPlayerAvailable?.Invoke();
                 onLocalPlayerAvailable = null;
             }
         }
 
-
-
-        public static bool IsGameScene()
-        {
-            return !SceneService.InBannedScene();
-        }
-
         public static bool CanRun()
         {
-            return IsGameScene() &&
-                   Instance != null && 
-                   LocalPlayer != null &&
-                   !LocalPlayer.IsNullOrDestroyed();
+            bool isGameScene = !SceneService.InBannedScene();
+            bool localPlayerNotNull = LocalPlayer != null;
+            bool localPlayerNotDestroyed = !LocalPlayer.IsNullOrDestroyed();
+
+            MelonLogger.Msg($"ReferenceService.CanRun() - isGameScene: {isGameScene}; localPlayerNotNull: {localPlayerNotNull}; localPlayerNotDestroyed: {localPlayerNotDestroyed}");
+
+            return isGameScene && localPlayerNotNull && localPlayerNotDestroyed;
+
         }
     }
 }
