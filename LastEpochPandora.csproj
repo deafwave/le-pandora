@@ -36,11 +36,18 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Config\" />
     <Folder Include="Parsers\" />
+    <Folder Include="Services\Trackers\" />
   </ItemGroup>
 
   <Target Name="AfterBuildCleanup" AfterTargets="Build">
