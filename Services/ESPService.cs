@@ -2,6 +2,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using MelonLoader;
+using Il2Cpp;
 
 namespace LastEpochPandora.Services
 {
@@ -13,7 +14,7 @@ namespace LastEpochPandora.Services
         private static bool isCleanupScheduled = false;
         private static float lastCleanupTime = 0f;
         private static float cleanupInterval = 0.5f;
-        private static float drawInterval = 0.5f;
+        private static float drawInterval = 0.1f;
         private static float lastDrawTime = 0f;
         private static bool canDraw = true;
         private static float defaultElementDuration = 0.6f;

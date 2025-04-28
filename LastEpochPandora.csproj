@@ -1,8 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +18,9 @@
     </Reference>
     <Reference Include="Il2CppLE">
       <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\Il2CppLE.dll</HintPath>
+    </Reference>
+    <Reference Include="Il2CppLE.Networking.Core">
+      <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\Il2CppLE.Networking.Core.dll</HintPath>
     </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>$(lePackage)\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath>

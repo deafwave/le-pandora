@@ -94,7 +94,7 @@ namespace LastEpochPandora.Mods
 
                 Vector3 playerPos = localActor.transform.position;
                 int validCount = 0;
-                float maxRenderDistance = 100f;
+                float maxRenderDistance = 1000f;
 
                 var shrines = ObjectManager.GetShrines();
                 if (shrines != null)
@@ -113,7 +113,14 @@ namespace LastEpochPandora.Mods
                         validCount++;
                         string label = obj.name.Replace("(Clone)", "").Trim();
 
-                        ESPService.QueueLine(playerPos, objPos, Color.yellow);
+                        if (obj.name.Contains("Lizard")) {
+                            ESPService.QueueLine(playerPos, objPos, Color.red);
+                        } else
+                        {
+                            //ESPService.QueueLine(playerPos, objPos, Color.yellow); // Uncomment this to draw all shrines, right now it only draws lizard shrines, since shrines are auto used there's no reason to draw them
+
+                        }
+                            
                         ESPService.QueueLabel(objPos + Vector3.up * 1.5f, label, Color.white);
 
                         if (distance > 10f)
@@ -122,7 +129,7 @@ namespace LastEpochPandora.Mods
                         }
                     }
                 }
-                MelonLogger.Msg($"InteractableTracker: Rendered {validCount} shrines");
+                //MelonLogger.Msg($"InteractableTracker: Rendered {validCount} shrines");
             }
             catch (Exception ex)
             {

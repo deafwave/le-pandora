@@ -5,6 +5,9 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using LastEpochPandora.Services;
+using Il2CppLE.Networking.Core;
+using HarmonyLib;
+using LastEpochPandora.Mods;
 
 namespace LastEpochPandora.Managers
 {
@@ -27,10 +30,11 @@ namespace LastEpochPandora.Managers
         }
 
         internal static PlayerSync GetPlayerSync() => _playerSync ??= PlayerSync.local;
+
         internal static ChestPlacementManager GetChestPlacementManager()
         {
             if (_chestPlacementManager == null && !SceneService.InBannedScene())
-                _chestPlacementManager = GameObject.Find("Chest Placement Manager")?.GetComponent<ChestPlacementManager>();
+                _chestPlacementManager = GameObject.Find("ChestPlacementManager")?.GetComponent<ChestPlacementManager>();
             return _chestPlacementManager;
         }
 
@@ -42,41 +46,44 @@ namespace LastEpochPandora.Managers
 
         private static void UpdateShrineCacheIfNeeded()
         {
-            MelonLogger.Msg($"[ShrineCache] Updating shrine cache at Time: {Time.time}");
+            //MelonLogger.Msg($"[ShrineCache] Updating shrine cache at Time: {Time.time}");
 
             if (Time.time - _lastCacheUpdateTime > CACHE_UPDATE_INTERVAL)
             {
                 _activeShrinesCache.Clear();
-                MelonLogger.Msg("[ShrineCache] Clearing shrine cache.");
+                //MelonLogger.Msg("[ShrineCache] Clearing shrine cache.");
 
                 var allShrineSyncs = UnityEngine.Object.FindObjectsOfType<ShrineSync>();
-                MelonLogger.Msg($"[ShrineCache] Found {allShrineSyncs.Length} ShrineSync objects.");
+                //MelonLogger.Msg($"[ShrineCache] Found {allShrineSyncs.Length} ShrineSync objects.");
 
                 foreach (var shrineSync in allShrineSyncs)
                 {
                     if (shrineSync != null && shrineSync.gameObject != null && shrineSync.gameObject.activeInHierarchy && shrineSync.ShrineObject != null)
                     {
-                        MelonLogger.Msg($"[ShrineCache] Examining ShrineSync: {shrineSync.gameObject.name}, ShrineObject: {shrineSync.ShrineObject.name}");
+                        //MelonLogger.Msg($"[ShrineCache] Examining ShrineSync: {shrineSync.gameObject.name}, ShrineObject: {shrineSync.ShrineObject.name}");
                         if (!IsShrineUsed(shrineSync.ShrineObject))
                         {
                             _activeShrinesCache.Add(shrineSync.ShrineObject);
-                            MelonLogger.Msg($"[ShrineCache] Added active unused shrine to cache: {shrineSync.ShrineObject.name}");
+                            shrineSync.OnInteraction(PlayerFinder.getLocalActorSync().gameObject); // Auto uses shrines upon loading it
+                            //MelonLogger.Msg($"[ShrineCache] Added active unused shrine to cache: {shrineSync.ShrineObject.name}");
                         }
                         else
                         {
-                            MelonLogger.Msg($"[ShrineCache] Shrine '{shrineSync.ShrineObject.name}' is considered used.");
+                            //MelonLogger.Msg($"[ShrineCache] Shrine '{shrineSync.ShrineObject.name}' is considered used.");
                         }
                     }
                 }
 
+
                 _lastCacheUpdateTime = Time.time;
-                MelonLogger.Msg($"[ShrineCache] Cache update complete, active shrine count: {_activeShrinesCache.Count}");
+                //MelonLogger.Msg($"[ShrineCache] Cache update complete, active shrine count: {_activeShrinesCache.Count}");
             }
             else
             {
-                MelonLogger.Msg($"[ShrineCache] Cache is still valid (updated at Time: {_lastCacheUpdateTime}).");
+                //MelonLogger.Msg($"[ShrineCache] Cache is still valid (updated at Time: {_lastCacheUpdateTime}).");
             }
         }
+
 
         private static bool IsShrineUsed(GameObject shrineObject)
         {
@@ -88,7 +95,8 @@ namespace LastEpochPandora.Managers
             var conditionHandler = shrineObject.GetComponent<ConditionHandler>();
             if (conditionHandler != null)
             {
-                MelonLogger.Msg($"[ShrineCheck] '{shrineObject.name}' ConditionHandler.triggered: {conditionHandler.triggered}");
+                //MelonLogger.Msg($"[ShrineCheck] '{shrineObject.name}' ConditionHandler.triggered: {conditionHandler.triggered}");
+                if (shrineObject.name.Contains("Lizard")) MelonLogger.Warning("LIZARDS FOUND");
                 return conditionHandler.triggered;
             }
             else

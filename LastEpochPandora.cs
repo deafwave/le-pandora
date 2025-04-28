@@ -1,6 +1,7 @@
 ﻿using LastEpochPandora.Mods;
 using LastEpochPandora.Services;
 using MelonLoader;
+using MelonLoader.Properties;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -8,10 +9,12 @@ namespace LastEpochPandora
 {
     public class LastEpochPandora : MelonMod
     {
+
         public override void OnInitializeMelon()
         {
             MelonLogger.Msg("Initializing mod...");
             SceneService.Init();
+
 
             SceneService.RegisterSceneChangeCallback(sceneName =>
             {
