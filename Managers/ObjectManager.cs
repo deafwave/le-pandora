@@ -19,6 +19,7 @@ namespace LastEpochPandora.Managers
 
         private static List<PortalSync> _portalsCache = new();
         private static List<GameObject> _activeShrinesCache = new();
+        private static List<NemesisContainers> _nemesisContainersCache = new();
         private static List<OneShotCacheInteractableObject> _cachesCache = new();
         private static float _lastCacheUpdateTime;
         private const float CACHE_UPDATE_INTERVAL = 1f;
@@ -44,6 +45,17 @@ namespace LastEpochPandora.Managers
             return _activeShrinesCache;
         }
 
+        internal static List<NemesisContainers> GetNemesisEncounters()
+        {
+            UpdateNemesisCache();
+            return _nemesisContainersCache;
+        }
+
+        private static void UpdateNemesisCache()
+        {
+
+        }
+
         private static void UpdateShrineCacheIfNeeded()
         {
             //MelonLogger.Msg($"[ShrineCache] Updating shrine cache at Time: {Time.time}");
@@ -64,7 +76,7 @@ namespace LastEpochPandora.Managers
                         if (!IsShrineUsed(shrineSync.ShrineObject))
                         {
                             _activeShrinesCache.Add(shrineSync.ShrineObject);
-                            shrineSync.OnInteraction(PlayerFinder.getLocalActorSync().gameObject); // Auto uses shrines upon loading it
+                            //shrineSync.OnInteraction(PlayerFinder.getLocalActorSync().gameObject); // Auto uses shrines upon loading it
                             //MelonLogger.Msg($"[ShrineCache] Added active unused shrine to cache: {shrineSync.ShrineObject.name}");
                         }
                         else
@@ -105,6 +117,7 @@ namespace LastEpochPandora.Managers
                 return shrineObject.name.Contains("Used") || shrineObject.name.Contains("Disabled");
             }
         }
+
 
         internal static List<OneShotCacheInteractableObject> GetCaches()
         {

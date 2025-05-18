@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using Microsoft.VisualBasic;
 using LastEpochPandora.Mods;
+using HarmonyLib;
 
 namespace LastEpochPandora.Services
 {
@@ -17,6 +18,7 @@ namespace LastEpochPandora.Services
         private static Action onLocalPlayerAvailable;
         public static ActorSync LocalPlayer { get; private set; }
         private static bool _isWaitingForLocalPlayer = false;
+        private static bool _patched = false;
 
         void OnDisable() => MelonLogger.Msg("ReferenceService: Disabled!");
         void OnDestroy() => MelonLogger.Msg("ReferenceService: Destroyed!");
@@ -34,7 +36,8 @@ namespace LastEpochPandora.Services
         {
             if (SceneService.InBannedScene()) return;
             var newLocalPlayer = PlayerFinder.getLocalActorSync();
-           
+            
+
             if (newLocalPlayer != LocalPlayer)
             {
                 if (!newLocalPlayer.IsNullOrDestroyed())
@@ -84,6 +87,13 @@ namespace LastEpochPandora.Services
             _isWaitingForLocalPlayer = false;
             if (onLocalPlayerAvailable != null)
             {
+                if (!_patched)
+                {
+                    MelonLogger.Msg("Patching everything");
+                    var harmony = new HarmonyLib.Harmony("com.lastepochpandora.referenceservice");
+                    harmony.PatchAll();
+                    _patched = true;
+                }
                 onLocalPlayerAvailable?.Invoke();
                 onLocalPlayerAvailable = null;
             }

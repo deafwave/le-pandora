@@ -14,7 +14,7 @@ namespace LastEpochPandora
         {
             MelonLogger.Msg("Initializing mod...");
             SceneService.Init();
-
+            
 
             SceneService.RegisterSceneChangeCallback(sceneName =>
             {
