@@ -53,7 +53,8 @@ namespace LastEpochPandora.Managers
 
         private static void UpdateNemesisCache()
         {
-
+            // TODO: Rework shrine logic here for Nemesis Caches 
+            // Also the rest of interactables
         }
 
         private static void UpdateShrineCacheIfNeeded()
